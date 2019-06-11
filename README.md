@@ -10,5 +10,7 @@ This script is used on CentOS 7.
 ## Run this script 
 To run this script, you must be the root user
 <code> git clone https://github.com/KonaisPC/v2ray-apache-ws.git </code>
+
 <code> cd v2ray-apache-ws </code>
+
 <code> bash v2ray-apache.sh </code>
