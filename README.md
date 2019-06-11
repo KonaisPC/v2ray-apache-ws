@@ -8,7 +8,8 @@ This script is used on CentOS 7.
 2. Configure the SSL files (.pem and .key files) on your VPS
 
 ## Run this script 
-To run this script, you must be the root user
+Note: To run this script, you must be the root user
+
 <code> git clone https://github.com/KonaisPC/v2ray-apache-ws.git </code>
 
 <code> cd v2ray-apache-ws </code>
