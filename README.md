@@ -1,5 +1,5 @@
 # v2ray-apache-websockets
-A simple demo for configuration of v2ray and apache on CentOS and Ubuntu. Break the evil GFW
+A Script for configuration of v2ray and apache on CentOS and Ubuntu. Break the evil GFW
 
 This script is used on CentOS 7 and Ubuntu 18.04.
 Posted from [品葱](https://pincong.rocks/article/1898), and you can find some more specific steps there.
