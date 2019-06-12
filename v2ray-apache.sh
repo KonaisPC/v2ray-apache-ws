@@ -3,130 +3,306 @@
 # I'll be appreciated If you are interested in modifing the simple demo to help us improve the 
 # ability! 
 
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+NC='\033[0m' # No Color
 
-echo -e "V2ray & Apache Configuration Script\n\n"
-echo Please input your domain name: 
-read domainName 
+judgetOsType() {
+  if ! [ -f /etc/os-release ]; then
+    >&2 echo "Error, /etc/os-release doesn't exist" 
+    exit 1
+  fi
 
-echo "Then please specify the path that your .pem file exists( the file must contains the contents of 'Origin Certificate' from CloudFlare ): "
-read pemFile
+  . /etc/os-release 
+  os=$ID
+}
 
-echo "Please specify the path that your .key file exists( the file must contains the contents of 'Private Key' from CloudFlare ): "
-read keyFile
+judgeIsRootUser() {
+  if [[ $EUID -ne 0 ]]; then
+   >&2 echo "Sorry, this script must be run as root" 
+   exit 1
+  fi
+}
 
-# Configure Apache 
-yum install httpd -y
-yum install mod_ssl -y
+# Judge installation tool 
+judgeInstallationTool() {
+  if [ "$os" == "centos" ]; then
+    install=yum
+  else 
+    install=apt
+  fi
+}
 
-# Write configuration contents to file
-apacheConfigureFile="/etc/httpd/conf.d/${domainName}.conf"
-/bin/cat > $apacheConfigureFile << EOF
-<VirtualHost *:80>
+userInput() {
+  echo -e "V2ray & Apache Configuration Script"
+  echo -e "Your OS type is $os \n\n"
+  echo -e "Please input your ${RED}domain name${NC}:"
+  read domainName 
 
-        Servername $domainName
+  echo -e "Then please specify the absolute path(/etc/example.pem) that your ${RED}.pem${NC} file exists(the file must contains the contents of 'Origin Certificate' from CloudFlare): "
+  read pemFile
 
-        RewriteEngine on
+  if ! [ -f $pemFile ]; then
+  >&2 echo "Sorry, $pemFile doesn't exist. Please try again" 
+    exit 2
+  fi
 
-        RewriteCond %{SERVER_NAME} =$domainName 
+  echo -e "Please specify the absolute path(/etc/example.key) that your ${RED}.key${NC} file exists(the file must contains the contents of 'Private Key' from CloudFlare): "
+  read keyFile 
 
-        RewriteRule ^ https://%{SERVER_NAME}%{REQUEST_URL} [END,NE,R=permanent]
+  if ! [ -f $keyFile ]; then
+  >&2 echo "Sorry, $keyFile doesn't exist. Please try again" 
+    exit 2
+  fi
+}
 
-</VirtualHost>
 
-<VirtualHost *:443>
+# Install Apache on CentOS
+installApacheOnCentos() {
+  yum install httpd -y
+  yum install mod_ssl -y
+}
 
-        Servername $domainName 
+# Install Apache on Ubuntu 
+installApacheOnUbuntu() {
+  apt install apache2 -y
+  a2enmod ssl
+}
 
-        SSLEngine on
+installApache() {
+  if [ "$os" == "centos" ]; then
+    installApacheOnCentos
+  else 
+    installApacheOnUbuntu
+  fi
+}
 
-        SSLCertificateFile $pemFile
+# Write configuration contents to Apache 
+configureApache() {
+  if [ "$os" == "centos" ]; then 
+    apacheConfigureFile="/etc/httpd/conf.d/${domainName}.conf"
+  else
+    apacheConfigureFile="/etc/apache2/sites-available/${domainName}.conf"
 
-        SSLCertificateKeyFile $keyFile
+    rm -rf /etc/apache2/sites-available/*
+  fi
 
-        RewriteEngine On
+  cat > $apacheConfigureFile << EOF
+  <VirtualHost *:80>
 
-        RewriteCond %{HTTP:Upgrade} =websocket [NC]
+          Servername $domainName
 
-        RewriteRule /(.*)      ws://localhost:12345/$1 [P,L]
+          RewriteEngine on
 
-        RewriteCond %{HTTP:Upgrade} !=websocket [NC]
+          RewriteCond %{SERVER_NAME} =$domainName 
 
-        RewriteRule /(.*)      http://localhost:12345/$1 [P,L]
+          RewriteRule ^ https://%{SERVER_NAME}%{REQUEST_URL} [END,NE,R=permanent]
 
-        SSLProxyEngine On
+  </VirtualHost>
 
-        ProxyPass /ws http://localhost:12345
+  <VirtualHost *:443>
 
-        ProxyPassReverse /ws http://127.0.0.1:12345
+          Servername $domainName 
 
-</VirtualHost>
+          SSLEngine on
+
+          SSLCertificateFile $pemFile
+
+          SSLCertificateKeyFile $keyFile
+
+          RewriteEngine On
+
+          RewriteCond %{HTTP:Upgrade} =websocket [NC]
+
+          RewriteRule /(.*)      ws://localhost:12345/$1 [P,L]
+
+          RewriteCond %{HTTP:Upgrade} !=websocket [NC]
+
+          RewriteRule /(.*)      http://localhost:12345/$1 [P,L]
+
+          SSLProxyEngine On
+
+          ProxyPass /ws http://localhost:12345
+
+          ProxyPassReverse /ws http://127.0.0.1:12345
+
+  </VirtualHost>
 EOF
+}
+
 
 # Restart and enable the apache daemon 
-systemctl restart httpd 
-systemctl enable httpd 
+restartAndEnableApache() {
+  if [ "$os" == "centos" ]; then
+    apache=httpd
+  else 
+    apache=apache2
+  fi
+
+  systemctl restart $apache
+  systemctl enable $apache
+}
 
 # Configure the firewall
-firewall-cmd --permanent --add-service=https
-firewall-cmd --reload 
+configureFirewall() {
+  firewall-cmd --permanent --add-service=https
+  firewall-cmd --reload 
+}
 
-yum install curl -y
+# Install V2ray
+installV2ray() {
+  $install install curl -y
+  # Official V2ray installation script 
+  bash <(curl -L -s https://install.direct/go.sh)
 
-# Official V2ray installation script 
-bash <(curl -L -s https://install.direct/go.sh)
+  # Generate random UUID number for v2ray
+  uuid=$(cat /proc/sys/kernel/random/uuid)
 
-# Generate random UUID number for v2ray
-uuid=$(cat /proc/sys/kernel/random/uuid)
-
-# Configure V2ray
-v2rayConfigureFile=/etc/v2ray/config.json
-cat > $v2rayConfigureFile << EOF
-{
-  "inbounds": [{
-    "port": 12345,
-    "listen": "127.0.0.1",
-    "protocol": "vmess",
-    "settings": {
-      "clients": [
+  # Configure V2ray
+  v2rayConfigureFile=/etc/v2ray/config.json
+  cat > $v2rayConfigureFile << EOF
+  {
+    "inbounds": [{
+      "port": 12345,
+      "listen": "127.0.0.1",
+      "protocol": "vmess",
+      "settings": {
+        "clients": [
+          {
+            "id": $uuid,
+            "level": 1,
+            "alterId": 64
+          }
+        ]
+      },
+      "streamSettings": {
+          "network": "ws",
+          "wsSettings": {
+              "path": "/ws"
+          }
+      }
+    }],
+    "outbounds": [{
+      "protocol": "freedom",
+      "settings": {}
+    },{
+      "protocol": "blackhole",
+      "settings": {},
+      "tag": "blocked"
+    }],
+    "routing": {
+      "rules": [
         {
-          "id": $uuid,
-          "level": 1,
-          "alterId": 64
+          "type": "field",
+          "ip": ["geoip:private"],
+          "outboundTag": "blocked"
         }
       ]
-    },
-    "streamSettings": {
-        "network": "ws",
-        "wsSettings": {
-            "path": "/ws"
-        }
     }
-  }],
-  "outbounds": [{
-    "protocol": "freedom",
-    "settings": {}
-  },{
-    "protocol": "blackhole",
-    "settings": {},
-    "tag": "blocked"
-  }],
-  "routing": {
-    "rules": [
-      {
-        "type": "field",
-        "ip": ["geoip:private"],
-        "outboundTag": "blocked"
-      }
-    ]
   }
+EOF
+
+  # Restart and enable v2ray daemon
+  systemctl restart v2ray
+  systemctl enable v2ray
+}
+
+# Output your corresponding client v2ray configure contents to ./client.json
+outputClientJsonFile() {
+  cat > ./client.json << EOF
+  {
+"inbounds": [
+{
+"port": 1080,
+"listen": "127.0.0.1",
+"protocol": "socks",
+"settings": {
+"udp": true
+}
+}
+],
+"outbounds": [
+{
+"protocol": "vmess",
+"settings": {
+"vnext": [
+{
+"address": "${domainName}",
+"port": 443,
+"users": [
+{
+"id": "$uuid",
+"level": 1,
+"alterId": 64,
+"security": "auto"
+}
+]
+}
+]
+},
+"streamSettings": {
+"network": "ws",
+"security": "tls",
+"tlsSettings": {
+"serverName": "$domainName",
+"allowInsecure": true
+},
+"wsSettings": {
+"path": "\/ws"
+}
+},
+"mux": {
+"enabled": true
+}
+},
+{
+"protocol": "freedom",
+"tag": "direct",
+"settings": {}
+}
+],
+"routing": {
+"domainStrategy": "IPOnDemand",
+"rules": [
+{
+"type": "field",
+"ip": [
+"geoip:private"
+],
+"outboundTag": "direct"
+}
+]
+}
 }
 EOF
 
-# Restart and enable v2ray daemon
-systemctl restart v2ray
-systemctl enable v2ray
+}
 
-echo -e "\n\n\nGreat! Configuration Success!"
-echo Your domain name is: $domainName
-echo Your uuid is: $uuid
-echo Enjoy! All men are created equal!
+
+conclude() {
+  echo -e "\n\n\n${GREEN}Great! Configuration Success!${NC}"
+  echo Your domain name is: $domainName
+  echo -e "Your ${RED}uuid(id)${NC} is: $uuid"
+  echo -e "Your corresponding ${RED}client v2ray configuration json file${NC} has been created at ./client.json($(pwd)/client.json)"
+  echo Enjoy! All men are created equal!
+}
+
+main() {
+  judgeIsRootUser
+  judgetOsType
+  judgeInstallationTool
+
+  userInput
+
+  installApache
+  configureApache
+  restartAndEnableApache
+
+  configureFirewall
+
+  installV2ray
+  outputClientJsonFile
+  conclude
+}
+
+main
