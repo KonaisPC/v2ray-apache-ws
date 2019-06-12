@@ -145,6 +145,12 @@ restartAndEnableApache() {
 
 # Configure the firewall
 configureFirewall() {
+  if [ "$os" != "centos" ]; then 
+    $install install firewalld
+    systemctl restart firewalld 
+    systemctl enable firewalld 
+  fi
+
   firewall-cmd --permanent --add-service=https
   firewall-cmd --reload 
 }
