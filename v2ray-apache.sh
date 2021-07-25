@@ -175,7 +175,7 @@ installV2ray() {
       "settings": {
         "clients": [
           {
-            "id": $uuid,
+            "id": "$uuid",
             "level": 1,
             "alterId": 64
           }
