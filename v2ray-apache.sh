@@ -165,7 +165,7 @@ installV2ray() {
   uuid=$(cat /proc/sys/kernel/random/uuid)
 
   # Configure V2ray
-  v2rayConfigureFile=/etc/v2ray/config.json
+  v2rayConfigureFile=/usr/local/etc/v2ray/config.json
   cat > $v2rayConfigureFile << EOF
   {
     "inbounds": [{
