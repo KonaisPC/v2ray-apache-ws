@@ -28,6 +28,8 @@ judgeIsRootUser() {
 judgeInstallationTool() {
   if [ "$os" == "centos" ]; then
     install=yum
+  elif [ "$os" == "fedora" ]; then
+    install=dnf
   else 
     install=apt
   fi
@@ -63,6 +65,11 @@ installApacheOnCentos() {
   yum install mod_ssl -y
 }
 
+installApacheOnFedora() {
+  dnf install httpd -y
+  dnf install mod_ssl -y
+}
+
 # Install Apache on Ubuntu 
 installApacheOnUbuntu() {
   apt install apache2 -y
@@ -72,6 +79,8 @@ installApacheOnUbuntu() {
 installApache() {
   if [ "$os" == "centos" ]; then
     installApacheOnCentos
+  elif [ "$os" == "fedora" ]; then
+    installApacheOnFedora
   else 
     installApacheOnUbuntu
   fi
@@ -80,6 +89,8 @@ installApache() {
 # Write configuration contents to Apache 
 configureApache() {
   if [ "$os" == "centos" ]; then 
+    apacheConfigureFile="/etc/httpd/conf.d/${domainName}.conf"
+  elif [ "$os" == "fedora" ]; then 
     apacheConfigureFile="/etc/httpd/conf.d/${domainName}.conf"
   else
     apacheConfigureFile="/etc/apache2/sites-available/${domainName}.conf"
@@ -135,6 +146,8 @@ EOF
 restartAndEnableApache() {
   if [ "$os" == "centos" ]; then
     apache=httpd
+  elif [ "$os" == "fedora" ]; then
+    apache=httpd
   else 
     apache=apache2
   fi
@@ -145,7 +158,7 @@ restartAndEnableApache() {
 
 # Configure the firewall
 configureFirewall() {
-  if [ "$os" != "centos" ]; then 
+  if [ "$os" == "ubuntu" ]; then 
     $install install firewalld
     systemctl restart firewalld 
     systemctl enable firewalld 
