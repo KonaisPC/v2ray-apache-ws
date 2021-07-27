@@ -1,5 +1,5 @@
 #!/bin/bash 
-# This is a script for the configuration of v2ray and apache on CentOS 7
+# This is a script for the configuration of v2ray and apache on CentOS or Fedora
 # I'll be appreciated If you are interested in modifing the simple demo to help us improve the 
 # ability! 
 
@@ -94,8 +94,6 @@ configureApache() {
     apacheConfigureFile="/etc/httpd/conf.d/${domainName}.conf"
   else
     apacheConfigureFile="/etc/apache2/sites-available/${domainName}.conf"
-
-    rm -rf /etc/apache2/sites-available/*
   fi
 
   cat > $apacheConfigureFile << EOF
@@ -325,3 +323,4 @@ main() {
 }
 
 main
+
