@@ -4,6 +4,9 @@ A Script for configuration of v2ray and apache on CentOS and Ubuntu. Break the e
 This script is used on CentOS 7 and Ubuntu 18.04.
 Posted from [品葱](https://pincong.rocks/article/1898), and you can find some more specific steps there.
 
+## Disclaimer bugs
+Due to some unpredicted problem, there has been a problem configuring the script on Ubuntu server. 
+Only tested on Centos/Fedora
 
 ## Prerequirements 
 1. Complete the bonding of your domain name and VPS IP address on CloudFlare
